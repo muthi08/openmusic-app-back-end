@@ -26,7 +26,7 @@ class SongsService {
   }
 
   async getSongs({ title, performer }) {
-    let queryText = 'SELECT id, title, performer FROM songs WHERE 1=1'; // 1=1 digunakan agar kondisi tambahan bisa digabungkan
+    let queryText = 'SELECT id, title, performer FROM songs WHERE 1=1';
     const values = [];
 
     if (title) {
@@ -48,10 +48,6 @@ class SongsService {
 
     return result.rows;
   }
-  // async getSongs() {
-  //   const result = await this._pool.query('SELECT id, title, performer FROM songs');
-  //   return result.rows;
-  // }
 
   async getSongById(id) {
     const query = {
