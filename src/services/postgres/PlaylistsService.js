@@ -28,10 +28,12 @@ class PlaylistsService {
 
   async getPlaylists(owner) {
     const query = {
-      text: `SELECT playlists.* FROM playlists
+      text: `SELECT playlists.id, playlists.name, users.username 
+      FROM playlists
+      LEFT JOIN users ON playlists.owner = users.id
       LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id
       WHERE playlists.owner = $1 OR collaborations.user_id = $1
-      GROUP BY playlists.id`,
+      GROUP BY playlists.id, users.username`,
       values: [owner],
     };
     const result = await this._pool.query(query);
@@ -108,6 +110,62 @@ class PlaylistsService {
       } catch {
         throw error;
       }
+    }
+  }
+
+  async addSongToPlaylist(playlistId, songId) {
+    const id = `playlistSong-${nanoid(16)}`;
+
+    const songQuery = {
+      text: 'SELECT id FROM songs WHERE id = $1',
+      values: [songId],
+    };
+    const songResult = await this._pool.query(songQuery);
+
+    if (!songResult.rows.length) {
+      throw new NotFoundError('Song tidak ditemukan');
+    }
+
+    // Tambahkan lagu ke playlist
+    const query = {
+      text: 'INSERT INTO song_playlists (id, playlist_id, song_id) VALUES ($1, $2, $3) RETURNING id',
+      values: [id, playlistId, songId],
+    };
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new InvariantError('Song gagal ditambahkan ke playlist');
+    }
+  }
+
+  async getSongsInPlaylist(playlistId) {
+    const query = {
+      text: `SELECT songs.id, songs.title, songs.performer 
+      FROM song_playlists
+      JOIN songs ON song_playlists.song_id = songs.id
+      WHERE song_playlists.playlist_id = $1
+      ORDER BY songs.title ASC`,
+      values: [playlistId],
+    };
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+
+    return result.rows;
+  }
+
+  async deleteSongFromPlaylist(playlistId, songId) {
+    const query = {
+      text: 'DELETE FROM song_playlists WHERE playlist_id = $1 AND song_id = $2 RETURNING id',
+      values: [playlistId, songId],
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new InvariantError('Song gagal dihapus dari playlist');
     }
   }
 }
