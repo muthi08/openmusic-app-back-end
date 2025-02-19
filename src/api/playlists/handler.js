@@ -11,6 +11,7 @@ class PlaylistsHandler {
     this.postSongToPlaylistHandler = this.postSongToPlaylistHandler.bind(this);
     this.getSongsInPlaylistHandler = this.getSongsInPlaylistHandler.bind(this);
     this.deleteSongFromPlaylistHandler = this.deleteSongFromPlaylistHandler.bind(this);
+    this.getPlaylistActivitiesHandler = this.getPlaylistActivitiesHandler.bind(this);
   }
 
   async postPlaylistHandler(request, h) {
@@ -91,9 +92,11 @@ class PlaylistsHandler {
     const { playlistId } = request.params;
     const { songId } = request.payload;
     const { id: credentialId } = request.auth.credentials;
+    const action = 'add';
 
     await this._service.verifyPlaylistAccess(playlistId, credentialId);
     await this._service.addSongToPlaylist(playlistId, songId);
+    await this._service.addPlaylistActivities(playlistId, songId, credentialId, action);
 
     return h.response({
       status: 'success',
@@ -133,14 +136,37 @@ class PlaylistsHandler {
     const { playlistId } = request.params;
     const { songId } = request.payload;
     const { id: credentialId } = request.auth.credentials;
+    const action = 'delete';
 
     await this._service.verifyPlaylistAccess(playlistId, credentialId);
     await this._service.deleteSongFromPlaylist(playlistId, songId);
+    await this._service.addPlaylistActivities(playlistId, songId, credentialId, action);
 
     return {
       status: 'success',
       message: 'Song berhasil dihapus dari playlist',
     };
+  }
+
+  async getPlaylistActivitiesHandler(request, h) {
+    const { playlistId } = request.params;
+    const { id: credentialId } = request.auth.credentials;
+
+    await this._service.verifyPlaylistOwner(playlistId, credentialId);
+    const activities = await this._service.getPlaylistActivities(playlistId);
+
+    return h.response({
+      status: 'success',
+      data: {
+        playlistId: playlistId,
+        activities: activities.map((activity) => ({
+          username: activity.username,
+          title: activity.title,
+          action: activity.action,
+          time: activity.time,
+        })),
+      },
+    }).code(200);
   }
 }
 

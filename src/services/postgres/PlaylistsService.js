@@ -11,7 +11,7 @@ class PlaylistsService {
   }
 
   async addPlaylist({ name, owner }) {
-    const id = nanoid(16);
+    const id = `playlist-${nanoid(16)}`;
 
     const query = {
       text: 'INSERT INTO playlists VALUES($1, $2, $3) RETURNING id',
@@ -168,6 +168,65 @@ class PlaylistsService {
     if (!result.rows.length) {
       throw new InvariantError('Song gagal dihapus dari playlist');
     }
+  }
+
+  async addPlaylistActivities(playlistId, songId, userId, action) {
+    try {
+      const id = `activity-${nanoid(16)}`;
+      const time = new Date().toISOString();
+
+      // Cek apakah playlist ada
+      const playlistQuery = {
+        text: 'SELECT id FROM playlists WHERE id = $1',
+        values: [playlistId],
+      };
+      const playlistResult = await this._pool.query(playlistQuery);
+
+      if (!playlistResult.rows.length) {
+        throw new NotFoundError('Playlist tidak ditemukan');
+      }
+
+      // console.log(playlistResult.rows[0]);
+
+      const query = {
+        text: `INSERT INTO song_playlist_activities (id, playlist_id, song_id, user_id, action, time) 
+        VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
+        values: [id, playlistId, songId, userId, action, time],
+      };
+
+      // console.log(query.text);
+      // console.log(query.values);
+
+      const result = await this._pool.query(query);
+
+      if (!result.rows.length) {
+        throw new InvariantError('Playlist activities gagal ditambahkan');
+      }
+
+      return result.rows[0].id;
+    } catch (error) {
+      console.error('Error in addPlaylistActivities:', error);
+      throw error;
+    }
+  }
+
+  async getPlaylistActivities(playlistId) {
+    const query = {
+      text: `SELECT users.username, songs.title, a.action, a.time
+      FROM song_playlist_activities a
+      JOIN songs ON a.song_id = songs.id
+      JOIN users ON a.user_id = users.id
+      WHERE a.playlist_id = $1
+      ORDER BY a.time ASC`,
+      values: [playlistId],
+    };
+    const result = await this._pool.query(query);
+
+    if (!result.rows.length) {
+      throw new NotFoundError('Playlist activities tidak ditemukan');
+    }
+
+    return result.rows;
   }
 }
 
