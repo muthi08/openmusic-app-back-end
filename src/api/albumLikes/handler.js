@@ -1,4 +1,3 @@
-/* eslint-disable no-trailing-spaces */
 class AlbumLikesHandler {
   constructor(service, validator) {
     this._service = service;
@@ -36,15 +35,20 @@ class AlbumLikesHandler {
   }
 
   async getAlbumLikesHandler(request, h) {
-    const { id:albumId } = request.params;
- 
-    const likes = await this._service.getAlbumLikesByAlbumId(albumId);
+    const { id: albumId } = request.params;
+
+    const { likes, isFromCache } = await this._service.getAlbumLikesByAlbumId(albumId);
+
     const response = h.response({
       status: 'success',
       data: {
         likes,
       },
     });
+
+    if (isFromCache) {
+      response.header('X-Data-Source', 'cache');
+    }
 
     return response;
   }
